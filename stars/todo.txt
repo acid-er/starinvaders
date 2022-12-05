@@ -1,0 +1,10 @@
+
+Tasks:
+
+* Time limit in between SS spawns, and randomly spawn 1-3 stars with 1 being more likely than 2, and 2 more likely than 3 (or however many, but ever less likely)
+
+- gameplay canvas: have all coordinates based on set gameplay dimensions
+- Move layers in slightly different directions
+- Add operator overload for * colors by vectors and by numbers
+
+
