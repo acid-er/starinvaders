@@ -31,10 +31,26 @@ alienshooting = false
 drawShip = true
 drawThrusters = true
 collisionTime = 0
+gameOverTime = 0
 alienTime = 0
 test = false
 spawnSet = 0
 lives = 3
+mode = "titleScreen"
+title_x = 100
+title_y = 1500
+nextBox1 = false
+nextBox2 = false
+nextBox3 = false
+box1_y = 750
+box2_y = 750
+box3_y = 750
+startOptions = false
+select_y = 395
+select_x = 200
+selectMoving_down = false
+selectMoving_up = false
+alienBulletLimit = 1
 
 function max2(x, y)
 
@@ -90,6 +106,8 @@ function spawnAliens(alienCount, alienType)
         alien["direction"] = "right"
         alien["speed"] = speedNumber + spawnSet 
         alien["rnd"] = math.random(1, 1000)
+        alien["lives"] = 1
+        alien["id"] = i + 10
 
         table.insert(aliens, alien)
 
@@ -149,6 +167,14 @@ function love.load()
     table.insert(frames, love.graphics.newImage("engine3.png"))
 
     currentFrame = 1
+
+    -- title sprites ----------------------------------------
+
+    titleSprite = love.graphics.newImage("title.png")
+    startSprite = love.graphics.newImage("start.png")
+    controlsSprite = love.graphics.newImage("controls.png")
+    optionsSprite = love.graphics.newImage("options.png")
+    controllerSprite = love.graphics.newImage("controlermap.png")
 
     -- loading alien sprites ---------------------------------
 
@@ -252,329 +278,455 @@ end
 
 function love.update(dt)
 
-    -- pause ---------------------------------
-
-    -- update stars ---------------------------------
-
     stars.update(dt)
+    local currentTime = os.time()
 
-    if love.keyboard.isDown("p") then 
-        pause = true
+    if mode == "controlScreen" then
+        print ("screen")
+
+        if love.keyboard.isDown("escape") then
+            mode = "titleScreen"
+        end
+
     end
 
-    if love.keyboard.isDown("o") then
-        pause = false
-    end
+    if mode == "titleScreen" then
 
-    if pause == false then
-        
-       -- spawning new aliens every n points ---------------------------------
+        alienBulletLimit = 1
+        spawnSet = 0
+        lives = 3
+        score = 0 
 
-        -- if score == nextScoreSpawn then
-        --     local alienN = math.random(1,3)
-        --     spawnAliens(8, alienN)
-        --     nextScoreSpawn = nextScoreSpawn + 700
+        --print ("hello")
+
+        -- moving title screen boxes --------------------------------------------
+
+        title_y = title_y - 5
+
+        if title_y < 100 then
+            title_y = 100
+            nextBox1 = true
+        end
+
+        if nextBox1 == true then
+            box1_y = box1_y - 6
+        end
+
+        if nextBox2 == true then
+            box2_y = box2_y - 6
+        end
+
+        -- if nextBox3 == true then
+        --     box3_y = box3_y - 6
         -- end
 
-        shipTurbo = false
-      --  shipmove = false
-        currentFrame = currentFrame + 3 * dt
-
-        -- manual spawn aliens ---------------------------------
-
-        if love.keyboard.isDown("s") and spawn == false then  
-            spawn = true
-            spawnAliens(8)
+        if box1_y < 380 then
+            box1_y = 380
+            nextBox2 = true
         end
 
-        if love.keyboard.isDown("s") == false then
-            spawn = false
+        if box2_y < 485 then
+            box2_y = 485
+            nextBox3 = true
         end
 
-        -- ship animation update ---------------------------------
-
-        if currentFrame >= 4 then
-            currentFrame = 1
+        if box3_y < 590 then
+            box3_y = 590
+            startOptions = true
         end
 
-        -- turbo test ---------------------------------
+        -- option select -----------------------------------------------
 
-        if love.keyboard.isDown("z") then
-            shipTurbo = true
-        else
-            shipTurbo = false
+        if love.keyboard.isDown("down") and selectMoving_down == false and nextBox3 == true then
+            selectMoving_down = true
+            select_y = select_y + 500
         end
 
-        if shipTurbo == true then
-            shipSpeed = 5
+        if love.keyboard.isDown("up") and selectMoving_up == false and nextBox3 == true then
+            selectMoving_up = true
+            select_y = select_y - 500
         end
-
-        if shipTurbo == false then
-            shipSpeed = 3
-        end
-
-        -- shooting ---------------------------------
-
-        if love.keyboard.isDown("space") and shooting == false and #bullets < 1 then
-
-            shooting = true 
-
-            local bullet = {}
-            bullet["x"] = ship_x + ship_w/2
-            bullet["y"] = ship_y - 25
-
-            table.insert(bullets, bullet)
-
-        end
-
-        -- alien shooting ---------------------------------
-
-        for alienKey, alien in pairs(aliens) do 
-            local rnd = math.random(1,10000)
-
-            if rnd < 30 and #alienBullets < 3 then
-
-                alienshooting = true
-
-                local alienBullet = {}
-
-                alienBullet["x"] = alien["x"]
-                alienBullet["y"] = alien["y"]
-                table.insert(alienBullets, alienBullet)
-
-            end
-
-            if rnd > 100 then
-                alienshooting = false
-            end
-
-        end
-
-        if love.keyboard.isDown("space") == false then
-            shooting = false
-        end
-
-        -- movement ---------------------------------
-
-        if love.keyboard.isDown("left") then
-            ship_x = ship_x - shipSpeed
-        end
-
-        if love.keyboard.isDown("right") then
-            ship_x = ship_x + shipSpeed
-        end
---[[
-        if love.keyboard.isDown("up") then
-            ship_y = ship_y - shipSpeed
-        end
-
-        if love.keyboard.isDown("down") then
-            ship_y = ship_y + shipSpeed
-        end ]]--
-
-      --[[  if love.keyboard.isDown("left") or 
-            love.keyboard.isDown("right") or
-            love.keyboard.isDown("up") or
-            love.keyboard.isDown("down") then
-            shipmove = true
-        else
-            shipmove = false
-        end ]]--
-
-        -- moving aliens ---------------------------------
-
-        for alienKey, alien in pairs(aliens) do
-            local x = alien["x"]
-            local y = alien["y"]
-            local direction = alien["direction"]
-            local speed = alien["speed"]
             
-            if direction == "left" then
-                x = x - speed
-            end
-               
-            if direction == "right" then 
-                x = x + speed
-            end
-
-            if direction == "down" then
-                y = y + speed
-            end
-
-            if direction == "left" and x <= 100 then
-                alien["target"] = y + 64
-                direction = "down"
-                x = 100
-            end
-
-            if direction == "right" and x >= window_w - 158 and y < 366 then
-                alien["target"] = y + 64
-                direction = "down" 
-                x = window_w - 158
-            end
-
-            if direction == "down"  and y >= alien["target"] and x <= 100 then 
-                direction = "right"
-            end 
-
-            if direction == "down" and y >= alien["target"] and x >= window_w - 158 then
-                direction = "left"
-            end
-
-            if x > 750 then
-                table.remove(aliens, alienKey)
-            end
-
-            alien["x"] = x
-            alien["direction"] = direction
-            alien["y"] = y
-
+        if love.keyboard.isDown("down") == false then
+            selectMoving_down = false
         end
 
-        -- preventing from going out of bounds ---------------------------------
-
-        if ship_x < 0 then
-            ship_x = 0
+        if love.keyboard.isDown("up") == false then
+            selectMoving_up = false
         end
 
-        if ship_y < 0 then
-            ship_y = 0
+        if select_y >= 500 then
+            select_x = 150
+            select_y = 500
         end
 
-        if ship_x > 704 then
-            ship_x = 704
+        if select_y <= 395 then
+            select_x = 200
+            select_y = 395
         end
 
-        if ship_y > 654 then
-            ship_y = 654
+        -- selecting -------------------------------
+
+        if select_y == 395 and love.keyboard.isDown("return") and nextBox3 == true then
+            mode = "gameScreen"
         end
 
-        -- bullet collision ---------------------------------
-
-        for bulletKey,bullet in pairs(bullets) do
-            local x = bullet["x"]
-            local y = bullet["y"]
-
-            for alienKey, alien in pairs(aliens) do 
-                local a_x = alien["x"]
-                local a_y = alien["y"]
-                local isTouching = isCollision2(x, y, bullet_w, bullet_h, a_x, a_y, alien_w, alien_h)
-
-                if isTouching then
-                    table.remove(bullets, bulletKey)
-                end
-
-                if isTouching then
-                    table.remove(aliens, alienKey)
-                end
-
-                if isTouching then
-                    score = score + 100
-                end
-               
-            end
-        end
-
-        
-
-        -- bullet movement ---------------------------------
-
-        for bulletKey,bullet in pairs(bullets) do
-            local y = bullet["y"]
-            y = y - 10 
-            bullet["y"] = y
-        end
-
-        -- deleting when bullet out of bounds ---------------------------------
-
-        for bulletKey,bullet in pairs(bullets) do
-            local y = bullet["y"]
-
-            if y < 0 then
-                table.remove(bullets, bulletKey)
-            end
-
-        end
-
-        -- alien bullet movement ---------------------------------
-
-        for alienBulletKey, alienBullet in pairs(alienBullets) do
-            local y = alienBullet["y"]
-            y = y + 7
-            alienBullet["y"] = y 
-        end
-
-        -- removing alien bullets ---------------------------------
-
-        for alienBulletKey, alienBullet in pairs(alienBullets) do 
-            local y = alienBullet["y"]
-
-            if y > 750 then
-                table.remove(alienBullets, alienBulletKey)
-            end
+        if select_y == 500 and love.keyboard.isDown("return") and nextBox3 == true then
+            mode = "controlScreen"
         end
 
     end
 
-        for alienBulletKey, alienBullet in pairs(alienBullets) do
-            local x = alienBullet["x"]
-            local y = alienBullet["y"]
-            isTouching = isCollision2(x, y, bullet_w, bullet_h, ship_x, ship_y, ship_w, ship_h)
 
-            if isTouching then
-                drawShip = false
-                drawThrusters = false
-                collisionTime = os.time()
-                pause = true
-                test = true
-                lives = lives - 1
+    if mode == "gameScreen" then
 
-                for bulletKey, bullet in pairs(bullets) do      
-                    table.remove(bullets, bulletKey)                   
-                end          
+        -- update stars ---------------------------------
 
-            end
-
-            if test == true then
-                table.remove(alienBullets, alienBulletKey)
-            end 
-
+        if love.keyboard.isDown("p") then 
+            pause = true
         end
 
-        if #aliens == 0 and alienTime == 0 then
-            -- local alienN = math.random(1,3)
-            -- spawnAliens(8, alienN)
-            alienTime = os.time()
-        end
-
-        local currentTime = os.time()
-
-        if currentTime - collisionTime > 2 then
-            drawShip = true
-            drawThrusters = true
+        if love.keyboard.isDown("o") then
             pause = false
         end
 
-        if currentTime > nextIncreaseTime then
-            spawnSet = spawnSet + 1
-            nextIncreaseTime = nextIncreaseTime + 10
-            print ("nextIncreaseTime: " .. nextIncreaseTime)
-            print ("currentTime: " ..  currentTime)
+        if pause == false then
+            
+           -- spawning new aliens every n points ---------------------------------
+
+            -- if score == nextScoreSpawn then
+            --     local alienN = math.random(1,3)
+            --     spawnAliens(8, alienN)
+            --     nextScoreSpawn = nextScoreSpawn + 700
+            -- end
+
+            shipTurbo = false
+          --  shipmove = false
+            currentFrame = currentFrame + 3 * dt
+
+            -- manual spawn aliens ---------------------------------
+
+            if love.keyboard.isDown("s") and spawn == false then  
+                spawn = true
+                spawnAliens(8)
+            end
+
+            if love.keyboard.isDown("s") == false then
+                spawn = false
+            end
+
+            -- ship animation update ---------------------------------
+
+            if currentFrame >= 4 then
+                currentFrame = 1
+            end
+
+            -- turbo test ---------------------------------
+
+            if love.keyboard.isDown("z") then
+                shipTurbo = true
+            else
+                shipTurbo = false
+            end
+
+            if shipTurbo == true then
+                shipSpeed = 5
+            end
+
+            if shipTurbo == false then
+                shipSpeed = 3
+            end
+
+            -- shooting ---------------------------------
+
+            if love.keyboard.isDown("space") and shooting == false and #bullets < 1 then
+
+                shooting = true 
+
+                local bullet = {}
+                bullet["x"] = ship_x + ship_w/2
+                bullet["y"] = ship_y - 25
+
+                table.insert(bullets, bullet)
+
+            end
+
+            -- alien shooting ---------------------------------
+
+            for alienKey, alien in pairs(aliens) do 
+                local rnd = math.random(1,10000)
+
+                if rnd < 30 and #alienBullets < alienBulletLimit then
+
+                    alienshooting = true
+
+                    local alienBullet = {}
+
+                    alienBullet["x"] = alien["x"]
+                    alienBullet["y"] = alien["y"]
+                    table.insert(alienBullets, alienBullet)
+
+                end
+
+                if rnd > 100 then
+                    alienshooting = false
+                end
+
+            end
+
+            if love.keyboard.isDown("space") == false then
+                shooting = false
+            end
+
+            -- movement ---------------------------------
+
+            if love.keyboard.isDown("left") then
+                ship_x = ship_x - shipSpeed
+            end
+
+            if love.keyboard.isDown("right") then
+                ship_x = ship_x + shipSpeed
+            end
+    --[[
+            if love.keyboard.isDown("up") then
+                ship_y = ship_y - shipSpeed
+            end
+
+            if love.keyboard.isDown("down") then
+                ship_y = ship_y + shipSpeed
+            end ]]--
+
+          --[[  if love.keyboard.isDown("left") or 
+                love.keyboard.isDown("right") or
+                love.keyboard.isDown("up") or
+                love.keyboard.isDown("down") then
+                shipmove = true
+            else
+                shipmove = false
+            end ]]--
+
+            -- moving aliens ---------------------------------
+
+            for alienKey, alien in pairs(aliens) do
+                local x = alien["x"]
+                local y = alien["y"]
+                local direction = alien["direction"]
+                local speed = alien["speed"]
+                
+                if direction == "left" then
+                    x = x - speed
+                end
+                   
+                if direction == "right" then 
+                    x = x + speed
+                end
+
+                if direction == "down" then
+                    y = y + speed
+                end
+
+                if direction == "left" and x <= 100 then
+                    alien["target"] = y + 64
+                    direction = "down"
+                    x = 100
+                end
+
+                if direction == "right" and x >= window_w - 158 and y < 366 then
+                    alien["target"] = y + 64
+                    direction = "down" 
+                    x = window_w - 158
+                end
+
+                if direction == "down"  and y >= alien["target"] and x <= 100 then 
+                    direction = "right"
+                end 
+
+                if direction == "down" and y >= alien["target"] and x >= window_w - 158 then
+                    direction = "left"
+                end
+
+                if x > 750 then
+                    table.remove(aliens, alienKey)
+                end
+
+                alien["x"] = x
+                alien["direction"] = direction
+                alien["y"] = y
+
+            end
+
+            -- preventing from going out of bounds ---------------------------------
+
+            if ship_x < 100 then
+                ship_x = 100
+            end
+
+            if ship_y < 0 then
+                ship_y = 0
+            end
+
+            if ship_x > 592 then
+                ship_x = 592
+            end
+
+            if ship_y > 654 then
+                ship_y = 654
+            end
+
+            -- bullet collision ---------------------------------
+
+            for bulletKey,bullet in pairs(bullets) do
+                local x = bullet["x"]
+                local y = bullet["y"]
+
+                for alienKey, alien in pairs(aliens) do 
+                    print("Alien " .. alienKey)
+                    local a_x = alien["x"]
+                    local a_y = alien["y"]
+                    local lives = alien["lives"]
+                    local isTouching = isCollision2(x, y, bullet_w, bullet_h, a_x, a_y, alien_w, alien_h)
+
+                    if isTouching then
+                        print("HIT ALIEN " .. alienKey)
+                        table.remove(bullets, bulletKey)
+                        lives = lives - 1
+                        alien["lives"] = lives
+
+                        print("Removing item #" .. alienKey .. " in list")
+
+                        if lives <= 0 then
+                            table.remove(aliens, alienKey)
+                            score = score + 100
+                        end
+
+                    end
+                   
+                end
+            end
+
+            
+
+            -- bullet movement ---------------------------------
+
+            for bulletKey,bullet in pairs(bullets) do
+                local y = bullet["y"]
+                y = y - 10 
+                bullet["y"] = y
+            end
+
+            -- deleting when bullet out of bounds ---------------------------------
+
+            for bulletKey,bullet in pairs(bullets) do
+                local y = bullet["y"]
+
+                if y < 0 then
+                    table.remove(bullets, bulletKey)
+                end
+
+            end
+
+            -- alien bullet movement ---------------------------------
+
+            for alienBulletKey, alienBullet in pairs(alienBullets) do
+                local y = alienBullet["y"]
+                y = y + 7
+                alienBullet["y"] = y 
+            end
+
+            -- removing alien bullets ---------------------------------
+
+            for alienBulletKey, alienBullet in pairs(alienBullets) do 
+                local y = alienBullet["y"]
+
+                if y > 750 then
+                    table.remove(alienBullets, alienBulletKey)
+                end
+            end
+
         end
 
-        if currentTime - collisionTime > 3 then
-            test = false
-        end
+            for alienBulletKey, alienBullet in pairs(alienBullets) do
+                local x = alienBullet["x"]
+                local y = alienBullet["y"]
+                isTouching = isCollision2(x, y, bullet_w, bullet_h, ship_x, ship_y, ship_w, ship_h)
 
-        if currentTime - alienTime > 3 and #aliens == 0 then
-            print("spawning aliens " .. currentTime .. " " .. alienTime)
-            spawnAliens(8, math.random(1,3))
+                if isTouching then
+                    drawShip = false
+                    drawThrusters = false
+                    collisionTime = os.time()
+                    pause = true
+                    test = true
+                    lives = lives - 1
 
-        end
+                    for bulletKey, bullet in pairs(bullets) do      
+                        table.remove(bullets, bulletKey)                   
+                    end          
 
-        if lives == 0 then
-            pause = true
+                end
+
+                if test == true then
+                    table.remove(alienBullets, alienBulletKey)
+                end 
+
+            end
+
+            if #aliens == 0 and alienTime == 0 then
+                -- local alienN = math.random(1,3)
+                -- spawnAliens(8, alienN)
+                alienTime = os.time()
+            end
+
+            if currentTime - collisionTime > 2 then
+                drawShip = true
+                drawThrusters = true
+                pause = false
+            end
+
+            if currentTime > nextIncreaseTime then
+                spawnSet = spawnSet + 1
+                alienBulletLimit = alienBulletLimit + 1 
+                nextIncreaseTime = nextIncreaseTime + 60
+                print ("nextIncreaseTime: " .. nextIncreaseTime)
+                print ("currentTime: " ..  currentTime)
+            end
+
+            if alienBulletLimit > 4 then 
+                alienBulletLimit = 4
+            end
+
+            if spawnSet > 3 then
+                spawnSet = 3
+            end
+
+            if currentTime - collisionTime > 3 then
+                test = false
+            end
+
+            if currentTime - alienTime > 3 and #aliens == 0 then
+                print("spawning aliens " .. currentTime .. " " .. alienTime)
+                spawnAliens(8, math.random(1,3))
+
+            end
+
+            if lives == 0 then
+                mode = "gameOver"
+                gameOverTime = os.time()
+            end
+    end
+
+    if mode == "gameOver" then
+
+        if currentTime - gameOverTime > 5 then
+            mode = "titleScreen"
         end
+    end
+
+    for alienkey, alien in pairs(aliens) do
+
+        if mode == "titleScreen" or mode == "gameOver" then
+            table.remove(aliens, alienkey)
+        end
+    end
 
 end
 
@@ -594,113 +746,148 @@ function love.draw()
 
     stars.draw()
 
-    local color_red = {1,0,0}
-    local color_white = {1,1,1}
-    love.graphics.setColor(color_white)
-
-    -- set the color red if colliding ---------------------------------
-
-    if collision == true then 
-        love.graphics.setColor(1, 0, 0)
+    if mode == "controlScreen" then
+        love.graphics.setColor(1,1,1)
+        love.graphics.draw(controllerSprite, 10, 0)
     end
 
-    -- ship and alien collision ---------------------------------
+    if mode == "gameOver" then
+        love.graphics.setColor(1,0,0)
+        love.graphics.rectangle("fill", 0, 0, 750, 750)
+    end
 
-    for alienKey,alien in pairs(aliens) do
-       local x = alien["x"]
-       local y = alien["y"]
-       local isTouching = isCollision2(ship_x, ship_y, ship_w, ship_h, x, y, alien_w, alien_h)
-
-    -- changing color when colliding + drawing aliens ---------------------------------
-
+    if mode == "titleScreen" then
+        print (hello1)
         love.graphics.setColor(1,1,1)
-        love.graphics.draw(alien["sprite"], x, y, --[[math.rad(180)]] 0, scale_a, scale_a)
+        love.graphics.draw(titleSprite, title_x, title_y)
+        love.graphics.draw(startSprite, 265, box1_y)
+        love.graphics.draw(controlsSprite, 225, box2_y)
+        love.graphics.rectangle("fill", 325, box3_y, 100, 50)
 
-        if isTouching then 
-            love.graphics.setColor(1,0,0)
-        else
-           local color = alien["color"]
-
-            if color == nil then
-                love.graphics.setColor(0.5,0.5,0.5)
-            else
-                love.graphics.setColor(color)
-            end
+        if nextBox3 == true then
+            love.graphics.draw(optionsSprite, select_x, select_y)
         end
 
-        --love.graphics.rectangle("line", x, y, ship_w, ship_h)
-
     end
 
-    -- drawing bullets ---------------------------------
+    if mode == "gameScreen" then
 
-    for bulletKey,bullet in pairs(bullets) do
-        local x = bullet["x"]
-        local y = bullet["y"]
-        love.graphics.setColor(1, 1, 0)
-        love.graphics.rectangle("fill", x, y, bullet_w, bullet_h)
-    end
+        local color_red = {1,0,0}
+        local color_white = {1,1,1}
+        love.graphics.setColor(color_white)
 
-    -- drawing alien bullets ---------------------------------
+        -- set the color red if colliding ---------------------------------
 
-    for alienBulletKey, alienBullet in pairs(alienBullets) do
-        local x = alienBullet["x"]
-        local y = alienBullet["y"]
-        love.graphics.setColor(1,0,0)
+        if collision == true then 
+            love.graphics.setColor(1, 0, 0)
+        end
 
-        for alienKey, alien in pairs(aliens) do
-            local spriteNumber = alien["sprite"]
+        -- ship and alien collision ---------------------------------
+
+        for alienKey,alien in pairs(aliens) do
+           local x = alien["x"]
+           local y = alien["y"]
+           local isTouching = isCollision2(ship_x, ship_y, ship_w, ship_h, x, y, alien_w, alien_h)
+
+            -- changing color when colliding + drawing aliens ---------------------------------
+
+            love.graphics.setColor(1,1,1)
+            love.graphics.draw(alien["sprite"], x, y, --[[math.rad(180)]] 0, scale_a, scale_a)
+            love.graphics.setColor(0,1,0)
+            --love.graphics.print(alien["lives"], x, y)
+            --love.graphics.print(alienKey, x, y)
+            --love.graphics.print(alien["id"], x, y+15)
+            love.graphics.setColor(1,1,1)
+
+            if isTouching then 
+                love.graphics.setColor(1,0,0)
+            else
+               local color = alien["color"]
+
+                if color == nil then
+                    love.graphics.setColor(0.5,0.5,0.5)
+                else
+                    love.graphics.setColor(color)
+                end
+            end
+
+            --love.graphics.rectangle("line", x, y, ship_w, ship_h)
+
+        end
+
+        -- drawing bullets ---------------------------------
+
+        for bulletKey,bullet in pairs(bullets) do
+            local x = bullet["x"]
+            local y = bullet["y"]
+            love.graphics.setColor(1, 1, 0)
             love.graphics.rectangle("fill", x, y, bullet_w, bullet_h)
         end
 
-    end
+        -- drawing alien bullets ---------------------------------
 
-    -- reset color to white ---------------------------------
+        for alienBulletKey, alienBullet in pairs(alienBullets) do
+            local x = alienBullet["x"]
+            local y = alienBullet["y"]
+            love.graphics.setColor(1,0,0)
 
-    love.graphics.setColor(1, 1, 1)
+            for alienKey, alien in pairs(aliens) do
+                local spriteNumber = alien["sprite"]
+                love.graphics.rectangle("fill", x, y, bullet_w, bullet_h)
+            end
 
-    -- drawing the ship ---------------------------------
+        end
 
-    if drawShip == true and lives > 0 then
-        love.graphics.draw(shipSprite, ship_x, ship_y, 0, scale_s, scale_s)
-    end
+        -- reset color to white ---------------------------------
 
-    if lives >= 1 then
-        love.graphics.draw(shipSprite, 20, 690, 0, 0.5, 0.5)
-    end
+        love.graphics.setColor(1, 1, 1)
 
-    if lives >= 2 then
-        love.graphics.draw(shipSprite, 60, 690, 0, 0.5, 0.5)
-    end
+        -- drawing the ship ---------------------------------
 
-    if lives >= 3 then
-        love.graphics.draw(shipSprite, 100, 690, 0, 0.5, 0.5)
-    end
+        if drawShip == true and lives > 0 then
+            love.graphics.draw(shipSprite, ship_x, ship_y, 0, scale_s, scale_s)
+        end
 
-    -- drawing the thrusters ---------------------------------
+        if lives >= 1 then
+            love.graphics.draw(shipSprite, 20, 690, 0, 0.5, 0.5)
+        end
 
-    if shipmove == true and drawThrusters == true then
-        local sprite = frames[math.floor(currentFrame)]
-        love.graphics.draw(sprite, ship_x, ship_y, 0, scale_s, scale_s)
-    end
+        if lives >= 2 then
+            love.graphics.draw(shipSprite, 60, 690, 0, 0.5, 0.5)
+        end
 
-    -- starting position of ship ---------------------------------
+        if lives >= 3 then
+            love.graphics.draw(shipSprite, 100, 690, 0, 0.5, 0.5)
+        end
 
-    love.graphics.print (ship_x, 5, 5)
-    love.graphics.print (ship_y, 5, 20)
-    
-    -- printing variables ---------------------------------
+        love.graphics.print ("score:" .. score, 20, 660)
 
-    love.graphics.print ("shooting: " .. booleanToString(shooting), 5, 50)
-    love.graphics.print ("number of bullets:  " .. #bullets, 5, 35)
-    love.graphics.print ("score:" .. score, 680, 725)
-    love.graphics.print ("number of alien bullets " .. #alienBullets, 5, 75)
-    love.graphics.print ("drawShip: " .. booleanToString(drawShip), 5, 100)
-    love.graphics.print ("gameStartTime: " .. spawnSet, 5, 115)
-    love.graphics.print ("lives: " .. lives, 5, 145)
+        -- drawing the thrusters ---------------------------------
 
-    if #aliens > 0 then
-        love.graphics.print ("alien y: " .. aliens[1]["y"], 5, 130)
+        if shipmove == true and drawThrusters == true then
+            local sprite = frames[math.floor(currentFrame)]
+            love.graphics.draw(sprite, ship_x, ship_y, 0, scale_s, scale_s)
+        end
+
+        -- starting position of ship ---------------------------------
+
+        -- love.graphics.print (ship_x, 5, 5)
+        -- love.graphics.print (ship_y, 5, 20)
+        
+        -- printing variables ---------------------------------
+
+        -- love.graphics.print ("shooting: " .. booleanToString(shooting), 5, 50)
+        -- love.graphics.print ("number of bullets:  " .. #bullets, 5, 35)
+        -- love.graphics.print ("number of alien bullets " .. #alienBullets, 5, 75)
+        -- love.graphics.print ("drawShip: " .. booleanToString(drawShip), 5, 100)
+        -- love.graphics.print ("gameStartTime: " .. spawnSet, 5, 115)
+        -- love.graphics.print ("lives: " .. lives, 5, 145)
+        -- love.graphics.print ("spawnSet: " .. spawnSet, 5, 205)
+
+        -- if #aliens > 0 then
+        --     love.graphics.print ("alien y: " .. aliens[1]["y"], 5, 130)
+        --     love.graphics.print ("alien x: " .. aliens[1]["x"], 5, 300)
+
     end
 
 end
