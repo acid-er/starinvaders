@@ -117,6 +117,8 @@ end
 
 function love.load()
 
+    canvas = love.graphics.newCanvas(750, 750)
+
     -- star background ---------------------------------
 
     local w,h = love.graphics.getDimensions()
@@ -291,6 +293,10 @@ function love.update(dt)
     end
 
     if mode == "titleScreen" then
+
+        if love.keyboard.isDown("rshift") then
+            mode = "gameScreen"
+        end
 
         alienBulletLimit = 1
         spawnSet = 0
@@ -742,6 +748,8 @@ end
 
 function love.draw()
 
+    love.graphics.setCanvas(canvas)
+
     love.graphics.clear(0, 0, 0)
 
     stars.draw()
@@ -889,6 +897,19 @@ function love.draw()
         --     love.graphics.print ("alien x: " .. aliens[1]["x"], 5, 300)
 
     end
+
+    love.graphics.setCanvas()
+    local width, height = love.graphics.getDimensions()
+
+    --love.graphics.clear(0,1,0,1)
+
+    if width > height then
+        local scale = height/750
+        love.graphics.draw(canvas, (width - 750 * scale)/2 , 0, 0, scale, scale)
+    else
+        local scale = width/750
+        love.graphics.draw(canvas, 0, (height - 750 * scale)/2, 0, scale, scale)
+    end  
 
 end
 
