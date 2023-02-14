@@ -12,15 +12,15 @@ shooting = false
 bullet_x = 0
 bullet_y = 0
 bullets = {}
-scale_a = 0.8
-scale_s = 1.0
+scale_a = 0.6
+scale_s = 0.8
 ship_w = 64 * scale_s
 ship_h = 64 * scale_s
 alien_w = 58 * scale_a
 alien_h = 48 * scale_a
 aliens = {}
 window_w = 750
-bullet_h = 25
+bullet_h = 20
 bullet_w = 2.5
 pause = false
 spawn = false
@@ -51,6 +51,16 @@ select_x = 200
 selectMoving_down = false
 selectMoving_up = false
 alienBulletLimit = 1
+gGrid = {}
+
+gShootSound = love.audio.newSource("sounds/shoot.wav", "static")
+gAlienDeath = love.audio.newSource("sounds/alien-death.wav", "static")
+gPlayerDeath = love.audio.newSource("sounds/death.wav", "static")
+gMenuMove = love.audio.newSource("sounds/menu-move.wav", "static")
+gMenuSelect = love.audio.newSource("sounds/menu-select.mp3", "static")
+gMenuMove = love.audio.newSource("sounds/menu-move.wav", "static")
+gIntroSound = love.audio.newSource("sounds/intro.wav", "static")
+gAlienShoot = love.audio.newSource("sounds/alien-shoot.wav", "static")
 
 function max2(x, y)
 
@@ -98,32 +108,53 @@ function spawnAliens(alienCount, alienType)
         --local speedNumber = math.random(2,8)
         local speedNumber = 3
 
-        alien = {}
-        alien["x"] = -1 * (i * (alien_w + scale_a * 20))
-        alien["y"] = 100 + i * 0
-        alien["color"] = color_magenta
-        alien["sprite"] = alienSprites[spriteNumber]
-        alien["direction"] = "right"
-        alien["speed"] = speedNumber + spawnSet 
-        alien["rnd"] = math.random(1, 1000)
-        alien["lives"] = 1
-        alien["id"] = i + 10
+        local newAlien = {}
+        newAlien["x"] = -1 * (i * (alien_w + scale_a * 20))
+        newAlien["y"] = 100 + i * 0
+        newAlien["color"] = color_magenta
+        newAlien["sprite"] = alienSprites[spriteNumber]
+        newAlien["direction"] = "right"
+        newAlien["speed"] = speedNumber + spawnSet 
+        newAlien["rnd"] = math.random(1, 1000)
+        newAlien["lives"] = 1
+        newAlien["id"] = i + 10
 
-        table.insert(aliens, alien)
+        table.insert(aliens, newAlien)
+        
+        local alienInserted = false
+        -- find a free spot in the grid
+        for r, row in ipairs (gGrid) do
+            
+            for c, cell in ipairs(row) do
+                
+                if cell.alien == nil then
+                    cell.alien = newAlien
+                    alienInserted = true
+                    print("found a spot for alien: " .. newAlien.id)
+                    break
+                end
+            end
 
+            if alienInserted == true then
+                break
+            end
+        end
+        
+        if alienInserted == false then
+            print("did not find a spot for: " .. newAlien.id)
+        end
     end
 
 end
 
 function love.load()
-
     canvas = love.graphics.newCanvas(750, 750)
 
     -- star background ---------------------------------
 
     local w,h = love.graphics.getDimensions()
     stars.loadStarLayers("stars.png", w, h)
-    stars.setVelocity({-0.5, 3}, 5)
+    stars.setVelocity({0, 3}, 5)
 
     ------------------------------------------------------------------
 
@@ -278,6 +309,106 @@ function isCollision2(x1, y1, w1, h1, x2, y2, w2, h2)
 
 end
 
+function gameStarted()
+
+    gGrid = {}
+    gGrid["x"] = 50
+    gGrid["y"] = 100
+
+    gGrid["rows"] = 4
+    gGrid["cols"] = 10
+    gGrid["cellH"] = 50
+    gGrid["cellW"] = 50
+    gGrid["direction"] = "right"
+
+    for r = 1, gGrid.rows do 
+        local row = {}
+
+        for c = 1, gGrid.cols do
+
+            local cell = {}
+            cell["name"] = c .. "," .. r
+            cell["alien"] = nil
+            row[c] = cell
+
+        end
+        
+        gGrid[r] = row
+        --table.insert(gGrid, row)
+
+    end
+
+    for r, row in ipairs(gGrid) do
+
+        print("row number: " .. r)
+
+        for c, cell in ipairs(row) do
+            print("contents of table: " .. cell.name)
+        end
+
+    end
+
+    spawnAliens(gGrid["cols"], math.random (1, 3))
+    nextAlienTime = os.time() + 15
+
+end
+
+function updateAliensSnake()
+
+    for alienKey, alien in pairs(aliens) do
+        local x = alien["x"]
+        local y = alien["y"]
+        local direction = alien["direction"]
+        local speed = alien["speed"]
+        
+        if direction == "left" then
+            x = x - speed
+        end
+           
+        if direction == "right" then 
+            x = x + speed
+        end
+
+        if direction == "down" then
+            y = y + speed
+        end
+
+        if direction == "left" and x <= 100 then
+            alien["target"] = y + 64
+            direction = "down"
+            x = 100
+        end
+
+        if direction == "right" and x >= window_w - 158 and y < 366 then
+            alien["target"] = y + 64
+            direction = "down" 
+            x = window_w - 158
+        end
+
+        if direction == "down"  and y >= alien["target"] and x <= 100 then 
+            direction = "right"
+        end 
+
+        if direction == "down" and y >= alien["target"] and x >= window_w - 158 then
+            direction = "left"
+        end
+
+        if x > 750 then
+            table.remove(aliens, alienKey)
+        end
+
+        alien["x"] = x
+        alien["direction"] = direction
+        alien["y"] = y
+
+    end
+
+end
+
+function updateAliensGalaga()
+
+end
+
 function love.update(dt)
 
     stars.update(dt)
@@ -287,6 +418,8 @@ function love.update(dt)
         print ("screen")
 
         if love.keyboard.isDown("escape") then
+            love.audio.stop(gMenuMove)
+            love.audio.play(gMenuMove)
             mode = "titleScreen"
         end
 
@@ -294,8 +427,11 @@ function love.update(dt)
 
     if mode == "titleScreen" then
 
+        love.audio.play(gIntroSound)
+
         if love.keyboard.isDown("rshift") then
             mode = "gameScreen"
+            gameStarted()
         end
 
         alienBulletLimit = 1
@@ -346,11 +482,15 @@ function love.update(dt)
         if love.keyboard.isDown("down") and selectMoving_down == false and nextBox3 == true then
             selectMoving_down = true
             select_y = select_y + 500
+            love.audio.stop(gMenuMove)
+            love.audio.play(gMenuMove)
         end
 
         if love.keyboard.isDown("up") and selectMoving_up == false and nextBox3 == true then
             selectMoving_up = true
             select_y = select_y - 500
+            love.audio.stop(gMenuMove)
+            love.audio.play(gMenuMove)
         end
             
         if love.keyboard.isDown("down") == false then
@@ -374,10 +514,15 @@ function love.update(dt)
         -- selecting -------------------------------
 
         if select_y == 395 and love.keyboard.isDown("return") and nextBox3 == true then
+            love.audio.stop(gMenuSelect)
+            love.audio.play(gMenuSelect)
             mode = "gameScreen"
+            gameStarted()
         end
 
         if select_y == 500 and love.keyboard.isDown("return") and nextBox3 == true then
+            love.audio.stop(gMenuSelect)
+            love.audio.play(gMenuSelect)
             mode = "controlScreen"
         end
 
@@ -385,6 +530,21 @@ function love.update(dt)
 
 
     if mode == "gameScreen" then
+
+
+        if gGrid['direction'] == "right" then 
+            gGrid['x'] = gGrid['x'] + 2
+        elseif 
+            gGrid['direction'] == 'left' then
+            gGrid['x'] = gGrid["x"] - 2
+        end
+
+        if gGrid['x'] + gGrid['cols'] * gGrid['cellW'] >= 700 then 
+            gGrid["direction"] = "left"
+        elseif
+            gGrid['x'] <= 50 then
+            gGrid['direction'] = "right"
+        end
 
         -- update stars ---------------------------------
 
@@ -414,7 +574,7 @@ function love.update(dt)
 
             if love.keyboard.isDown("s") and spawn == false then  
                 spawn = true
-                spawnAliens(8)
+                spawnAliens(gGrid["cols"])
             end
 
             if love.keyboard.isDown("s") == false then
@@ -447,7 +607,10 @@ function love.update(dt)
 
             if love.keyboard.isDown("space") and shooting == false and #bullets < 1 then
 
-                shooting = true 
+                shooting = true
+
+                love.audio.stop(gShootSound) 
+                love.audio.play(gShootSound)
 
                 local bullet = {}
                 bullet["x"] = ship_x + ship_w/2
@@ -465,6 +628,9 @@ function love.update(dt)
                 if rnd < 30 and #alienBullets < alienBulletLimit then
 
                     alienshooting = true
+
+                    love.audio.stop(gAlienShoot)
+                    love.audio.play(gAlienShoot)
 
                     local alienBullet = {}
 
@@ -513,52 +679,20 @@ function love.update(dt)
 
             -- moving aliens ---------------------------------
 
-            for alienKey, alien in pairs(aliens) do
-                local x = alien["x"]
-                local y = alien["y"]
-                local direction = alien["direction"]
-                local speed = alien["speed"]
-                
-                if direction == "left" then
-                    x = x - speed
+            updateAliensSnake()
+
+            for r, row in ipairs(gGrid) do 
+
+                for c, cell in ipairs(row) do 
+
+                    if cell.alien ~= nil then
+
+                        local alien = cell.alien
+                        alien.x = gGrid.x + (c - 1) * gGrid.cellW + gGrid.cellW/2 - alien_w/2
+                        alien.y = gGrid.y + (r - 1) * gGrid.cellH + gGrid.cellH/2 - alien_h/2
+
+                    end
                 end
-                   
-                if direction == "right" then 
-                    x = x + speed
-                end
-
-                if direction == "down" then
-                    y = y + speed
-                end
-
-                if direction == "left" and x <= 100 then
-                    alien["target"] = y + 64
-                    direction = "down"
-                    x = 100
-                end
-
-                if direction == "right" and x >= window_w - 158 and y < 366 then
-                    alien["target"] = y + 64
-                    direction = "down" 
-                    x = window_w - 158
-                end
-
-                if direction == "down"  and y >= alien["target"] and x <= 100 then 
-                    direction = "right"
-                end 
-
-                if direction == "down" and y >= alien["target"] and x >= window_w - 158 then
-                    direction = "left"
-                end
-
-                if x > 750 then
-                    table.remove(aliens, alienKey)
-                end
-
-                alien["x"] = x
-                alien["direction"] = direction
-                alien["y"] = y
-
             end
 
             -- preventing from going out of bounds ---------------------------------
@@ -593,6 +727,10 @@ function love.update(dt)
                     local isTouching = isCollision2(x, y, bullet_w, bullet_h, a_x, a_y, alien_w, alien_h)
 
                     if isTouching then
+
+                        love.audio.stop(gAlienDeath)
+                        love.audio.play(gAlienDeath)
+
                         print("HIT ALIEN " .. alienKey)
                         table.remove(bullets, bulletKey)
                         lives = lives - 1
@@ -616,7 +754,7 @@ function love.update(dt)
 
             for bulletKey,bullet in pairs(bullets) do
                 local y = bullet["y"]
-                y = y - 10 
+                y = y - 18 
                 bullet["y"] = y
             end
 
@@ -657,6 +795,10 @@ function love.update(dt)
                 isTouching = isCollision2(x, y, bullet_w, bullet_h, ship_x, ship_y, ship_w, ship_h)
 
                 if isTouching then
+
+                    love.audio.stop(gPlayerDeath)
+                    love.audio.play(gPlayerDeath)
+
                     drawShip = false
                     drawThrusters = false
                     collisionTime = os.time()
@@ -696,6 +838,11 @@ function love.update(dt)
                 print ("currentTime: " ..  currentTime)
             end
 
+            if currentTime > nextAlienTime then
+                spawnAliens(gGrid['cols'], math.random(1,3)) 
+                nextAlienTime = nextAlienTime + 15
+            end
+
             if alienBulletLimit > 4 then 
                 alienBulletLimit = 4
             end
@@ -708,10 +855,9 @@ function love.update(dt)
                 test = false
             end
 
-            if currentTime - alienTime > 3 and #aliens == 0 then
-                print("spawning aliens " .. currentTime .. " " .. alienTime)
-                spawnAliens(8, math.random(1,3))
-
+            if currentTime > alienTime then
+                alienTime = alienTime + 10
+                alienTime = alienTime + 10
             end
 
             if lives == 0 then
@@ -779,6 +925,39 @@ function love.draw()
     end
 
     if mode == "gameScreen" then
+
+        love.audio.stop(gIntroSound)
+
+        local rows = gGrid["rows"]
+        local cols = gGrid["cols"]
+
+        local cellH = gGrid["cellH"]
+        local cellW = gGrid["cellW"]
+
+        love.graphics.setColor(1,1,1)
+        --love.graphics.rectangle("line", gGrid["x"], gGrid["y"], 700, 300)
+
+        -- for i = 0, cols do
+        --     love.graphics.line(i * cellW + gGrid["x"], gGrid["y"], i * cellW + gGrid["x"], gGrid["y"] + rows * cellH)
+        -- end
+
+        -- for i = 0, rows do
+        --     love.graphics.line(gGrid['x'], i * cellH + gGrid["y"], gGrid["x"] + cellW * cols, i * cellH + gGrid["y"] )
+        -- end
+
+        -- for r, row in ipairs(gGrid) do 
+
+        --     for c, cell in ipairs(row) do
+
+        --         if cell.alien ~= nil then
+
+        --             love.graphics.setColor(1,0,0)
+        --             love.graphics.rectangle("fill", gGrid.x + (c - 1) * cellW, gGrid.y + (r - 1) * cellH, cellW, cellH)
+                    
+        --         end
+        --     end
+        -- end
+
 
         local color_red = {1,0,0}
         local color_white = {1,1,1}
@@ -903,11 +1082,13 @@ function love.draw()
 
     --love.graphics.clear(0,1,0,1)
 
+    local scale
+
     if width > height then
-        local scale = height/750
+        scale = height/750
         love.graphics.draw(canvas, (width - 750 * scale)/2 , 0, 0, scale, scale)
     else
-        local scale = width/750
+        scale = width/750
         love.graphics.draw(canvas, 0, (height - 750 * scale)/2, 0, scale, scale)
     end  
 
