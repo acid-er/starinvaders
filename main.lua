@@ -348,8 +348,10 @@ function gameStarted()
 
     end
 
-    spawnAliens(gGrid["cols"], math.random (1, 3))
-    nextAlienTime = os.time() + 15
+    if #aliens <= gGrid.rows * gGrid.cols - gGrid.cols then
+        spawnAliens(gGrid["cols"], math.random (1, 3))
+        nextAlienTime = os.time() + 1
+    end
 
 end
 
@@ -726,6 +728,7 @@ function love.update(dt)
                     local lives = alien["lives"]
                     local isTouching = isCollision2(x, y, bullet_w, bullet_h, a_x, a_y, alien_w, alien_h)
 
+
                     if isTouching then
 
                         love.audio.stop(gAlienDeath)
@@ -739,12 +742,22 @@ function love.update(dt)
                         print("Removing item #" .. alienKey .. " in list")
 
                         if lives <= 0 then
+                            
                             table.remove(aliens, alienKey)
                             score = score + 100
-                        end
 
+                            for r, row in ipairs(gGrid) do
+
+                                for c,cell in ipairs(row) do
+
+                                    if alien == cell.alien then
+                                        cell.alien = nil
+                                    end
+
+                                end
+                            end
+                        end                    
                     end
-                   
                 end
             end
 
@@ -838,9 +851,13 @@ function love.update(dt)
                 print ("currentTime: " ..  currentTime)
             end
 
-            if currentTime > nextAlienTime then
-                spawnAliens(gGrid['cols'], math.random(1,3)) 
-                nextAlienTime = nextAlienTime + 15
+            if #aliens <= gGrid.rows * gGrid.cols - gGrid.cols then
+
+                if currentTime > nextAlienTime then
+                    spawnAliens(gGrid['cols'], math.random(1,3)) 
+                    nextAlienTime = nextAlienTime + 1
+                end
+
             end
 
             if alienBulletLimit > 4 then 
@@ -934,29 +951,29 @@ function love.draw()
         local cellH = gGrid["cellH"]
         local cellW = gGrid["cellW"]
 
-        love.graphics.setColor(1,1,1)
+        love.graphics.setColor(0.5,0.5,0.5)
         --love.graphics.rectangle("line", gGrid["x"], gGrid["y"], 700, 300)
 
-        -- for i = 0, cols do
-        --     love.graphics.line(i * cellW + gGrid["x"], gGrid["y"], i * cellW + gGrid["x"], gGrid["y"] + rows * cellH)
-        -- end
+        for i = 0, cols do
+            love.graphics.line(i * cellW + gGrid["x"], gGrid["y"], i * cellW + gGrid["x"], gGrid["y"] + rows * cellH)
+        end
 
-        -- for i = 0, rows do
-        --     love.graphics.line(gGrid['x'], i * cellH + gGrid["y"], gGrid["x"] + cellW * cols, i * cellH + gGrid["y"] )
-        -- end
+        for i = 0, rows do
+            love.graphics.line(gGrid['x'], i * cellH + gGrid["y"], gGrid["x"] + cellW * cols, i * cellH + gGrid["y"] )
+        end
 
-        -- for r, row in ipairs(gGrid) do 
+        for r, row in ipairs(gGrid) do 
 
-        --     for c, cell in ipairs(row) do
+            for c, cell in ipairs(row) do
 
-        --         if cell.alien ~= nil then
+                if cell.alien ~= nil then
 
-        --             love.graphics.setColor(1,0,0)
-        --             love.graphics.rectangle("fill", gGrid.x + (c - 1) * cellW, gGrid.y + (r - 1) * cellH, cellW, cellH)
+                    love.graphics.setColor(1,0,0, 0.5)
+                    love.graphics.rectangle("fill", gGrid.x + (c - 1) * cellW, gGrid.y + (r - 1) * cellH, cellW, cellH)
                     
-        --         end
-        --     end
-        -- end
+                end
+            end
+        end
 
 
         local color_red = {1,0,0}
