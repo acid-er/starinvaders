@@ -52,6 +52,7 @@ selectMoving_down = false
 selectMoving_up = false
 alienBulletLimit = 1
 gGrid = {}
+gDebug = false
 
 gShootSound = love.audio.newSource("sounds/shoot.wav", "static")
 gAlienDeath = love.audio.newSource("sounds/alien-death.wav", "static")
@@ -110,7 +111,7 @@ function spawnAliens(alienCount, alienType)
 
         local newAlien = {}
         newAlien["x"] = -1 * (i * (alien_w + scale_a * 20))
-        newAlien["y"] = 100 + i * 0
+        newAlien["y"] = 500 + i * 0
         newAlien["color"] = color_magenta
         newAlien["sprite"] = alienSprites[spriteNumber]
         newAlien["direction"] = "right"
@@ -118,6 +119,7 @@ function spawnAliens(alienCount, alienType)
         newAlien["rnd"] = math.random(1, 1000)
         newAlien["lives"] = 1
         newAlien["id"] = i + 10
+        newAlien["mode"] = "free"
 
         table.insert(aliens, newAlien)
         
@@ -320,6 +322,11 @@ function gameStarted()
     gGrid["cellH"] = 50
     gGrid["cellW"] = 50
     gGrid["direction"] = "right"
+    gGrid['cellW_min'] = gGrid.cellW
+    gGrid['cellW_max'] = gGrid.cellW * 2
+    gGrid['cellH_min'] = gGrid.cellH
+    gGrid['cellH_max'] = gGrid.cellH * 2
+    gGrid['mode'] = "expand"
 
     for r = 1, gGrid.rows do 
         local row = {}
@@ -350,7 +357,7 @@ function gameStarted()
 
     if #aliens <= gGrid.rows * gGrid.cols - gGrid.cols then
         spawnAliens(gGrid["cols"], math.random (1, 3))
-        nextAlienTime = os.time() + 1
+        nextAlienTime = os.time() + 5
     end
 
 end
@@ -408,6 +415,21 @@ function updateAliensSnake()
 end
 
 function updateAliensGalaga()
+
+end
+
+function love.keypressed(key, isrepeat)
+
+    print(key)
+    print(isrepeat)
+
+    if isrepeat == true then
+        return
+    end
+
+    if key == "d" then
+        gDebug = not gDebug
+    end
 
 end
 
@@ -533,6 +555,32 @@ function love.update(dt)
 
     if mode == "gameScreen" then
 
+        -- if gGrid.mode == 'expand' then
+        --     gGrid.cellW = gGrid.cellW + 0.5
+        --     gGrid.cellH = gGrid.cellH + 0.5
+        -- end
+
+        -- if gGrid.mode == 'decrease' then
+        --     gGrid.cellW = gGrid.cellW - 0.5
+        --     gGrid.cellH = gGrid.cellH - 0.5
+        -- end
+
+        -- if gGrid.cellW >= gGrid.cellW_max then
+        --     gGrid.mode = 'decrease'
+        -- end
+
+        -- if gGrid.cellW <= gGrid.cellW_min then
+        --     gGrid.mode = 'expand'
+        -- end
+
+        -- if gGrid.cellH >= gGrid.cellH_max then
+        --     gGrid.mode = 'decrease'
+        -- end
+
+        -- if gGrid.cellH <= gGrid.cellH_min then
+        --     gGrid.mode = 'expand'
+        -- end
+
 
         if gGrid['direction'] == "right" then 
             gGrid['x'] = gGrid['x'] + 2
@@ -547,6 +595,8 @@ function love.update(dt)
             gGrid['x'] <= 50 then
             gGrid['direction'] = "right"
         end
+
+
 
         -- update stars ---------------------------------
 
@@ -681,7 +731,8 @@ function love.update(dt)
 
             -- moving aliens ---------------------------------
 
-            updateAliensSnake()
+           -- updateAliensSnake()
+
 
             for r, row in ipairs(gGrid) do 
 
@@ -689,10 +740,40 @@ function love.update(dt)
 
                     if cell.alien ~= nil then
 
-                        local alien = cell.alien
-                        alien.x = gGrid.x + (c - 1) * gGrid.cellW + gGrid.cellW/2 - alien_w/2
-                        alien.y = gGrid.y + (r - 1) * gGrid.cellH + gGrid.cellH/2 - alien_h/2
+                        if cell.alien.mode == "grid" then
+                            local alien = cell.alien
+                            alien.x = gGrid.x + (c - 1) * gGrid.cellW + gGrid.cellW/2 - alien_w/2
+                            alien.y = gGrid.y + (r - 1) * gGrid.cellH + gGrid.cellH/2 - alien_h/2
+                        elseif cell.alien.mode == 'free' then
+                            local x_target = gGrid.x + (c - 1) * gGrid.cellW + gGrid.cellW/2 - alien_w/2
+                            local y_target = gGrid.y + (r - 1) * gGrid.cellH + gGrid.cellH/2 - alien_h/2
+                            local alien_distX = x_target - cell.alien.x
+                            local alien_distY = y_target - cell.alien.y 
 
+                            local distance_squared = alien_distX * alien_distX + alien_distY * alien_distY
+                            local distance = math.sqrt(distance_squared)
+
+                            -- print("alien_x: " .. cell.alien.x)
+                            -- print("alien_y: " .. cell.alien.y)
+
+                            local alienSpeed = 4
+
+                            if distance <= alienSpeed then
+                                cell.alien.mode = "grid"
+                            else
+
+                                local distanceRatio = alienSpeed/distance
+                                local move_x = distanceRatio * alien_distX
+                                local move_y = distanceRatio * alien_distY
+
+                                -- print("Ratio: " .. distanceRatio)
+                                -- print("alien_distX: " .. alien_distX)
+                                -- print("alien_distY: " .. alien_distY)
+
+                                cell.alien.x = cell.alien.x + move_x
+                                cell.alien.y = cell.alien.y + move_y
+                            end
+                        end
                     end
                 end
             end
@@ -855,7 +936,7 @@ function love.update(dt)
 
                 if currentTime > nextAlienTime then
                     spawnAliens(gGrid['cols'], math.random(1,3)) 
-                    nextAlienTime = nextAlienTime + 1
+                    nextAlienTime = nextAlienTime + 5
                 end
 
             end
@@ -945,6 +1026,8 @@ function love.draw()
 
         love.audio.stop(gIntroSound)
 
+    if gDebug == true then
+
         local rows = gGrid["rows"]
         local cols = gGrid["cols"]
 
@@ -974,6 +1057,10 @@ function love.draw()
                 end
             end
         end
+
+        love.graphics.setColor(1,1,1,1)
+
+    end
 
 
         local color_red = {1,0,0}
@@ -1092,7 +1179,13 @@ function love.draw()
         --     love.graphics.print ("alien y: " .. aliens[1]["y"], 5, 130)
         --     love.graphics.print ("alien x: " .. aliens[1]["x"], 5, 300)
 
-    end
+        if gDebug == true then
+            love.graphics.print("Grid x: " .. gGrid.x, 5, 15)
+            love.graphics.print("Grid y: " .. gGrid.y, 5, 30)
+            love.graphics.print("Cell width: " .. gGrid.cellW, 5, 45)
+            love.graphics.print("Cell height: " .. gGrid.cellH, 5, 60)
+        end
+    end -- gamescreen
 
     love.graphics.setCanvas()
     local width, height = love.graphics.getDimensions()
