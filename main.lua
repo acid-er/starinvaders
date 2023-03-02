@@ -20,6 +20,7 @@ alien_w = 58 * scale_a
 alien_h = 48 * scale_a
 aliens = {}
 window_w = 750
+window_h = 750
 bullet_h = 20
 bullet_w = 2.5
 pause = false
@@ -53,7 +54,15 @@ selectMoving_up = false
 alienBulletLimit = 1
 gGrid = {}
 gDebug = false
+rsp = 0
+custom = 16
+pauseMenu = false
+pauseW = 200
+pauseH = 250
+pauseX = window_w/2-100
+pauseY = window_h/2-150
 
+file = love.filesystem.newFile("arcade.ttf")
 gShootSound = love.audio.newSource("sounds/shoot.wav", "static")
 gAlienDeath = love.audio.newSource("sounds/alien-death.wav", "static")
 gPlayerDeath = love.audio.newSource("sounds/death.wav", "static")
@@ -119,10 +128,10 @@ function spawnAliens(alienCount, alienType)
         newAlien["rnd"] = math.random(1, 1000)
         newAlien["lives"] = 1
         newAlien["id"] = i + 10
-        newAlien["mode"] = "free"
+        newAlien["mode"] = "gotoGrid"
 
         table.insert(aliens, newAlien)
-        
+
         local alienInserted = false
         -- find a free spot in the grid
         for r, row in ipairs (gGrid) do
@@ -195,6 +204,15 @@ function love.load()
     engine2Sprite = love.graphics.newImage("engine2.png")
     engine3Sprite = love.graphics.newImage("engine3.png")
 
+    explosion1 = love.graphics.newImage('explosion1.png')
+    explosion2 = love.graphics.newImage('explosion2.png')
+    explosion3 = love.graphics.newImage('explosion3.png')
+
+    playerdeath1 = love.graphics.newImage('playerdeath1.png')
+    playerdeath2 = love.graphics.newImage('playerdeath2.png')
+    playerdeath3 = love.graphics.newImage('playerdeath3.png')
+
+
     frames = {}
 
     table.insert(frames, love.graphics.newImage("engine1.png"))
@@ -203,6 +221,18 @@ function love.load()
 
     currentFrame = 1
 
+    explosions = {}
+
+    table.insert(explosions, love.graphics.newImage('explosion1.png'))
+    table.insert(explosions, love.graphics.newImage('explosion2.png'))
+    table.insert(explosions, love.graphics.newImage('explosion3.png'))
+
+    playerExplosions = {}
+
+    table.insert(playerExplosions, love.graphics.newImage('playerdeath1.png'))
+    table.insert(playerExplosions, love.graphics.newImage('playerdeath2.png'))
+    table.insert(playerExplosions, love.graphics.newImage('playerdeath3.png'))
+
     -- title sprites ----------------------------------------
 
     titleSprite = love.graphics.newImage("title.png")
@@ -210,6 +240,10 @@ function love.load()
     controlsSprite = love.graphics.newImage("controls.png")
     optionsSprite = love.graphics.newImage("options.png")
     controllerSprite = love.graphics.newImage("controlermap.png")
+
+    -- other --------------------------------------------
+
+    gameoverSprite = love.graphics.newImage('gameover.png')
 
     -- loading alien sprites ---------------------------------
 
@@ -263,8 +297,6 @@ function love.load()
     aliens[2] = alien2
     aliens[3] = alien3
     aliens[4] = alien4 ]]--
-
-    nextIncreaseTime = os.time() + 60
 
 end
 
@@ -328,6 +360,9 @@ function gameStarted()
     gGrid['cellH_max'] = gGrid.cellH * 2
     gGrid['mode'] = "expand"
 
+    gExplosions = {}
+    gPlayerExplosions = {}
+
     for r = 1, gGrid.rows do 
         local row = {}
 
@@ -357,8 +392,12 @@ function gameStarted()
 
     if #aliens <= gGrid.rows * gGrid.cols - gGrid.cols then
         spawnAliens(gGrid["cols"], math.random (1, 3))
-        nextAlienTime = os.time() + 5
+        nextAlienTime = os.time() + custom
+        rsp = rsp + 1
     end
+
+    nextIncreaseTime = os.time() + 15
+    nextAlienDive = os.time() + math.random(10, 15)
 
 end
 
@@ -447,11 +486,18 @@ function love.update(dt)
             mode = "titleScreen"
         end
 
+        love.audio.play(gIntroSound)
+
     end
 
     if mode == "titleScreen" then
 
         love.audio.play(gIntroSound)
+
+        custom = 16
+        rsp = 0
+        ship_x = 346
+        ship_y = 600
 
         if love.keyboard.isDown("rshift") then
             mode = "gameScreen"
@@ -555,6 +601,10 @@ function love.update(dt)
 
     if mode == "gameScreen" then
 
+        if love.keyboard.isDown('escape') then
+            mode = 'titleScreen'
+        end
+
         -- if gGrid.mode == 'expand' then
         --     gGrid.cellW = gGrid.cellW + 0.5
         --     gGrid.cellH = gGrid.cellH + 0.5
@@ -582,34 +632,41 @@ function love.update(dt)
         -- end
 
 
-        if gGrid['direction'] == "right" then 
-            gGrid['x'] = gGrid['x'] + 2
-        elseif 
-            gGrid['direction'] == 'left' then
-            gGrid['x'] = gGrid["x"] - 2
-        end
-
-        if gGrid['x'] + gGrid['cols'] * gGrid['cellW'] >= 700 then 
-            gGrid["direction"] = "left"
-        elseif
-            gGrid['x'] <= 50 then
-            gGrid['direction'] = "right"
-        end
-
-
-
         -- update stars ---------------------------------
 
-        if love.keyboard.isDown("p") then 
-            pause = true
+        for playerExplosionKey, playerExplosion in ipairs(gPlayerExplosions) do
+                playerExplosion.currentFrame = playerExplosion.currentFrame + 6 * dt
+
+            if playerExplosion.currentFrame > 4 then
+                table.remove(gPlayerExplosions, playerExplosionKey)
+            end
         end
 
-        if love.keyboard.isDown("o") then
-            pause = false
-        end
 
         if pause == false then
             
+            for explosionKey, explosion in ipairs(gExplosions) do
+                explosion.currentFrame = explosion.currentFrame + 10 * dt
+
+                if explosion.currentFrame > 4 then
+                    table.remove(gExplosions, explosionKey) 
+                end
+            end
+
+            if gGrid['direction'] == "right" then 
+                gGrid['x'] = gGrid['x'] + 2
+            elseif 
+                gGrid['direction'] == 'left' then
+                gGrid['x'] = gGrid["x"] - 2
+            end
+
+            if gGrid['x'] + gGrid['cols'] * gGrid['cellW'] >= 700 then 
+                gGrid["direction"] = "left"
+            elseif
+                gGrid['x'] <= 50 then
+                gGrid['direction'] = "right"
+            end
+
            -- spawning new aliens every n points ---------------------------------
 
             -- if score == nextScoreSpawn then
@@ -675,7 +732,7 @@ function love.update(dt)
             -- alien shooting ---------------------------------
 
             for alienKey, alien in pairs(aliens) do 
-                local rnd = math.random(1,10000)
+                local rnd = math.random(1,15000)
 
                 if rnd < 30 and #alienBullets < alienBulletLimit then
 
@@ -733,6 +790,30 @@ function love.update(dt)
 
            -- updateAliensSnake()
 
+            -- Diving aliens
+
+
+
+            if #aliens > 0 and currentTime > nextAlienDive and mode == 'gameScreen' then
+
+                nextAlienDive = nextAlienDive + math.random(10, 15) 
+                    
+                local maxAliens = 2
+
+                if #aliens < 2 then
+                    maxAliens = #aliens
+                end
+
+                for i = 1, math.random(1,maxAliens) do
+
+                    local freeAlien = math.random(1, #aliens)                        
+                    aliens[freeAlien].mode = 'target'
+                    aliens[freeAlien].targetX = ship_x
+                    aliens[freeAlien].targetY = ship_y - 150
+                end
+
+            end
+
 
             for r, row in ipairs(gGrid) do 
 
@@ -744,7 +825,7 @@ function love.update(dt)
                             local alien = cell.alien
                             alien.x = gGrid.x + (c - 1) * gGrid.cellW + gGrid.cellW/2 - alien_w/2
                             alien.y = gGrid.y + (r - 1) * gGrid.cellH + gGrid.cellH/2 - alien_h/2
-                        elseif cell.alien.mode == 'free' then
+                        elseif cell.alien.mode == 'gotoGrid' then
                             local x_target = gGrid.x + (c - 1) * gGrid.cellW + gGrid.cellW/2 - alien_w/2
                             local y_target = gGrid.y + (r - 1) * gGrid.cellH + gGrid.cellH/2 - alien_h/2
                             local alien_distX = x_target - cell.alien.x
@@ -772,6 +853,47 @@ function love.update(dt)
 
                                 cell.alien.x = cell.alien.x + move_x
                                 cell.alien.y = cell.alien.y + move_y
+                            end
+
+                        elseif cell.alien.mode == 'target' then
+
+                            local distX = ship_x - cell.alien.x
+                            local distY = cell.alien.targetY - cell.alien.y
+
+                            local dist = distX * distX + distY * distY
+                            local distSqrt = math.sqrt(dist)
+
+                            local alienSpeed = 5
+
+                            if distSqrt <= alienSpeed then
+
+                                    alienshooting = true
+
+                                    love.audio.stop(gAlienShoot)
+                                    love.audio.play(gAlienShoot)
+
+                                    local alienBullet = {}
+
+                                    alienBullet["x"] = cell.alien["x"]
+                                    alienBullet["y"] = cell.alien["y"]
+                                    table.insert(alienBullets, alienBullet)
+
+                                cell.alien.mode = "gotoGrid"
+                            else
+
+                                local distR = alienSpeed/distSqrt
+                                local moveX = distR * distX
+                                local moveY = distR * distY
+
+                                cell.alien.x = cell.alien.x + moveX
+                                cell.alien.y = cell.alien.y + moveY
+
+                                print("moveX: " .. moveX)
+                                print("moveY: " .. moveY)
+                                print("distX: " .. distX)
+                                print("distY: " .. distY)
+                                print("distSqrt: " .. distSqrt)
+                                print("ratio: " .. distR)
                             end
                         end
                     end
@@ -825,7 +947,14 @@ function love.update(dt)
                         if lives <= 0 then
                             
                             table.remove(aliens, alienKey)
-                            score = score + 100
+                            score = score + 50
+
+                            local explosion = {}
+                            explosion['x'] = alien.x
+                            explosion['y'] = alien.y
+                            explosion['currentFrame'] = 1
+
+                            table.insert(gExplosions, explosion)
 
                             for r, row in ipairs(gGrid) do
 
@@ -893,10 +1022,17 @@ function love.update(dt)
                     love.audio.stop(gPlayerDeath)
                     love.audio.play(gPlayerDeath)
 
+                    local playerExplosion = {}
+                    playerExplosion['x'] = ship_x
+                    playerExplosion['y'] = ship_y
+                    playerExplosion['currentFrame'] = 1
+
+                    table.insert(gPlayerExplosions, playerExplosion)
+
                     drawShip = false
                     drawThrusters = false
-                    collisionTime = os.time()
                     pause = true
+                    collisionTime = os.time()
                     test = true
                     lives = lives - 1
 
@@ -911,7 +1047,7 @@ function love.update(dt)
                 end 
 
             end
-
+                 
             if #aliens == 0 and alienTime == 0 then
                 -- local alienN = math.random(1,3)
                 -- spawnAliens(8, alienN)
@@ -927,7 +1063,7 @@ function love.update(dt)
             if currentTime > nextIncreaseTime then
                 spawnSet = spawnSet + 1
                 alienBulletLimit = alienBulletLimit + 1 
-                nextIncreaseTime = nextIncreaseTime + 60
+                nextIncreaseTime = nextIncreaseTime + 15
                 print ("nextIncreaseTime: " .. nextIncreaseTime)
                 print ("currentTime: " ..  currentTime)
             end
@@ -936,13 +1072,30 @@ function love.update(dt)
 
                 if currentTime > nextAlienTime then
                     spawnAliens(gGrid['cols'], math.random(1,3)) 
-                    nextAlienTime = nextAlienTime + 5
+                    nextAlienTime = nextAlienTime + custom
+                    rsp = rsp + 1
                 end
 
             end
 
-            if alienBulletLimit > 4 then 
-                alienBulletLimit = 4
+
+            if rsp > 6 then
+                rsp = 6
+            end
+
+            if rsp == 1 then
+                custom = 15
+            elseif rsp == 4 then
+                custom = 12
+            elseif rsp == 8 then
+                custom = 9
+            elseif rsp == 12 then
+                custom = 6
+            end
+
+
+            if alienBulletLimit > 5 then 
+                alienBulletLimit = 5
             end
 
             if spawnSet > 3 then
@@ -959,8 +1112,8 @@ function love.update(dt)
             end
 
             if lives == 0 then
-                mode = "gameOver"
-                gameOverTime = os.time()
+                mode = 'gameOver'
+                gameOverTime = os.time() + 5
             end
     end
 
@@ -1004,8 +1157,8 @@ function love.draw()
     end
 
     if mode == "gameOver" then
-        love.graphics.setColor(1,0,0)
-        love.graphics.rectangle("fill", 0, 0, 750, 750)
+        love.graphics.setColor(1,1,1)
+        love.graphics.draw(gameoverSprite, window_w/2 - 140, window_h/2 - 29.5, 0, scale_a, scale_a)
     end
 
     if mode == "titleScreen" then
@@ -1025,6 +1178,11 @@ function love.draw()
     if mode == "gameScreen" then
 
         love.audio.stop(gIntroSound)
+
+    if pauseMenu == true then
+        love.graphics.setColor(1,1,1)
+        love.graphics.rectangle('line', pauseX, pauseY + 50, 200, 50)
+    end
 
     if gDebug == true then
 
@@ -1051,7 +1209,14 @@ function love.draw()
 
                 if cell.alien ~= nil then
 
-                    love.graphics.setColor(1,0,0, 0.5)
+                    if cell.alien.mode == 'gotoGrid' then
+                        love.graphics.setColor(0,1,0, 0.5)
+                    elseif cell.alien.mode == 'grid' then
+                        love.graphics.setColor(1,0,0,0.5)
+                    elseif cell.alien.mode == 'target' then
+                        love.graphics.setColor(0,0,1, 0.5)
+                    end
+
                     love.graphics.rectangle("fill", gGrid.x + (c - 1) * cellW, gGrid.y + (r - 1) * cellH, cellW, cellH)
                     
                 end
@@ -1151,13 +1316,25 @@ function love.draw()
             love.graphics.draw(shipSprite, 100, 690, 0, 0.5, 0.5)
         end
 
-        love.graphics.print ("score:" .. score, 20, 660)
+        love.graphics.setNewFont(file, 15)
+
+        love.graphics.printf(score, window_w/2 - 50, 50, 100, 'center')
 
         -- drawing the thrusters ---------------------------------
 
         if shipmove == true and drawThrusters == true then
             local sprite = frames[math.floor(currentFrame)]
             love.graphics.draw(sprite, ship_x, ship_y, 0, scale_s, scale_s)
+        end
+
+        for explosionKey, explosion in ipairs(gExplosions) do
+
+            love.graphics.draw(explosions[math.floor(explosion.currentFrame)], explosion.x, explosion.y, 0, scale_a, scale_a)
+        end
+
+        for playerExplosionKey, playerExplosion in ipairs(gPlayerExplosions) do
+
+            love.graphics.draw(playerExplosions[math.floor(playerExplosion.currentFrame)], playerExplosion.x, playerExplosion.y, 0, scale_s, scale_s)
         end
 
         -- starting position of ship ---------------------------------
