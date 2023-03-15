@@ -470,6 +470,10 @@ function love.keypressed(key, isrepeat)
         gDebug = not gDebug
     end
 
+    if key == 'p' then
+        pause = not pause 
+    end
+
 end
 
 function love.update(dt)
@@ -681,14 +685,14 @@ function love.update(dt)
 
             -- manual spawn aliens ---------------------------------
 
-            if love.keyboard.isDown("s") and spawn == false then  
-                spawn = true
-                spawnAliens(gGrid["cols"])
-            end
+            -- if love.keyboard.isDown("s") and spawn == false then  
+            --     spawn = true
+            --     spawnAliens(gGrid["cols"])
+            -- end
 
-            if love.keyboard.isDown("s") == false then
-                spawn = false
-            end
+            -- if love.keyboard.isDown("s") == false then
+            --     spawn = false
+            -- end
 
             -- ship animation update ---------------------------------
 
@@ -698,19 +702,19 @@ function love.update(dt)
 
             -- turbo test ---------------------------------
 
-            if love.keyboard.isDown("z") then
-                shipTurbo = true
-            else
-                shipTurbo = false
-            end
+            -- if love.keyboard.isDown("z") then
+            --     shipTurbo = true
+            -- else
+            --     shipTurbo = false
+            -- end
 
-            if shipTurbo == true then
-                shipSpeed = 5
-            end
+            -- if shipTurbo == true then
+            --     shipSpeed = 5
+            -- end
 
-            if shipTurbo == false then
-                shipSpeed = 3
-            end
+            -- if shipTurbo == false then
+            --     shipSpeed = 3
+            -- end
 
             -- shooting ---------------------------------
 
@@ -743,7 +747,7 @@ function love.update(dt)
 
                     local alienBullet = {}
 
-                    alienBullet["x"] = alien["x"]
+                    alienBullet["x"] = alien["x"] + alien['x']/2
                     alienBullet["y"] = alien["y"]
                     table.insert(alienBullets, alienBullet)
 
@@ -1054,7 +1058,7 @@ function love.update(dt)
                 alienTime = os.time()
             end
 
-            if currentTime - collisionTime > 2 then
+            if drawShip == false and currentTime - collisionTime > 2 then
                 drawShip = true
                 drawThrusters = true
                 pause = false
@@ -1085,12 +1089,12 @@ function love.update(dt)
 
             if rsp == 1 then
                 custom = 15
-            elseif rsp == 4 then
+            elseif rsp == 3 then
                 custom = 12
-            elseif rsp == 8 then
+            elseif rsp == 6 then
                 custom = 9
-            elseif rsp == 12 then
-                custom = 6
+            elseif rsp == 9 then
+                custom = 5
             end
 
 
@@ -1113,13 +1117,13 @@ function love.update(dt)
 
             if lives == 0 then
                 mode = 'gameOver'
-                gameOverTime = os.time() + 5
+                gameOverTime = os.time() + 3
             end
     end
 
     if mode == "gameOver" then
 
-        if currentTime - gameOverTime > 5 then
+        if currentTime - gameOverTime > 3 then
             mode = "titleScreen"
         end
     end
